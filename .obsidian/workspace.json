@@ -1,0 +1,168 @@
+{
+  "main": {
+    "id": "c9463ed1f79cf3c9",
+    "type": "split",
+    "children": [
+      {
+        "id": "1b166d3c62946311",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3473f0eb099bdc8c",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "New tab"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "2a642e12351f33ad",
+    "type": "split",
+    "children": [
+      {
+        "id": "f62298a0d3dff254",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "bd3fed4f92e369b8",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "254cc36b074d7d2c",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "c00b90015bbe6e15",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "8a3ec96321423353",
+    "type": "split",
+    "children": [
+      {
+        "id": "88965404293a095b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "42ab75d3a013b8cd",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Architectural factors, non-functional requirements, restrictions, principles.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Architectural factors, non-functional requirements, restrictions, principles"
+            }
+          },
+          {
+            "id": "778fcfa689683e25",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Architectural factors, non-functional requirements, restrictions, principles.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Architectural factors, non-functional requirements, restrictions, principles"
+            }
+          },
+          {
+            "id": "b3f91fde6db20057",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "494279d9cb9cdda2",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Architectural factors, non-functional requirements, restrictions, principles.md"
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Architectural factors, non-functional requirements, restrictions, principles"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false
+    }
+  },
+  "active": "3473f0eb099bdc8c",
+  "lastOpenFiles": [
+    "1. Исходные сведения/Введение.md",
+    "1. Исходные сведения/Словарь.md",
+    "1. Исходные сведения/Архитектурные факторы.md",
+    "ссылка.md"
+  ]
+}
