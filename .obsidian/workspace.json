@@ -4,21 +4,17 @@
     "type": "split",
     "children": [
       {
-        "id": "1b166d3c62946311",
+        "id": "278870e48b11d0ab",
         "type": "tabs",
         "children": [
           {
-            "id": "3473f0eb099bdc8c",
+            "id": "097d363f55d192c7",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "Event Storming.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "Event Storming"
+              "title": "New tab"
             }
           }
         ]
@@ -162,12 +158,19 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "3473f0eb099bdc8c",
+  "active": "097d363f55d192c7",
   "lastOpenFiles": [
+    "ADR/2024-11.1 - Выбор архитектурной формы системы.md",
+    "1. Исходные сведения/Архитектурные факторы.md",
+    "ADR",
+    "2. Технический проект/1_context.md",
+    "2. Технический проект/1_context.puml.md",
+    "2. Технический проект/1_context.puml",
+    "Untitled.canvas",
+    "2. Технический проект",
     "Event Storming.md",
     "1. Исходные сведения/Введение.md",
     "1. Исходные сведения/Словарь.md",
-    "1. Исходные сведения/Архитектурные факторы.md",
     "ссылка.md"
   ]
 }
