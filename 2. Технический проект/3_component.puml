@@ -74,14 +74,12 @@ Rel(geo_service, openstreetmap, "Получение картографическ
 
 System_Ext(oauth_providers, "OAuth провайдеры (Google, Facebook, etc.)", "Аутентификация")
 Rel(auth_service, oauth_providers, "Аутентификация через OAuth 2.0", "OAuth 2.0")
-Rel(mobile_app, oauth_providers, "Аутентификация", "OAuth 2.0")
 
-System_Ext(gitlab_ci, "GitLab CI/CD", "CI/CD")
-Rel(gitlab_ci, microservices, "Deployment, управление конфигурациями", "")
+System_Ext(jenkins_ci, "Jenkins CI/CD", "CI/CD")
+Rel(jenkins_ci, microservices, "Deployment, управление конфигурациями", "")
 
 System_Ext(monitoring_tools, "Prometheus, Grafana, ELK", "Мониторинг")
-Rel(microservices, monitoring_tools,"Отправка метрик и логов", "")
-Rel(api_gateway, monitoring_tools, "Отправка метрик и логов", "")
+Rel(c1, monitoring_tools,"Сбор метрик и логов по всем приложениям", "")
 
 System_Ext(testing_tools, "testify, GoMock, Cypress, k6", "Тестирование")
 Rel(testing_tools, microservices, "Тестирование API, интеграционные и E2E тесты", "")
