@@ -1,0 +1,31 @@
+@startuml
+!include <c4/C4_Context>
+
+System(geo_system, "Система Геолокации", "Сбор, анализ и предоставление геолокационных данных устройств для мониторинга, статистики и аналитики", "Go, Flutter, CockroachDB, TimescaleDB, Redis, Kafka, Vault")
+
+Person(device_owner, "Владелец устройства", "Мониторинг местоположения своего устройства, просмотр истории перемещений")
+Person(operator, "Оператор системы", "Управление данными устройств, формирование аналитических отчетов, управление доступом")
+Person(business_user, "Бизнес-пользователь", "Анализ геоданных по различным параметрам (фильтрация), интеграция с другими системами")
+Person(third_party, "Третьи стороны", "Получение геоданных через API для исследований или интеграции")
+
+Rel(device_owner, geo_system, "Запрос местоположения, просмотр истории", "HTTP/2, WebSockets (для реального времени)")
+Rel(operator, geo_system, "Управление системой, отчеты, доступ", "HTTP/2")
+Rel(business_user, geo_system, "Запрос геоданных, интеграция", "HTTP/2")
+Rel(third_party, geo_system, "Получение геоданных", "HTTP/2")
+
+System_Ext(osm, "OpenStreetMap", "Предоставление картографических данных", "HTTP/2")
+Rel(geo_system, osm, "Запрос картографических данных", "HTTP/2")
+
+System_Ext(google_maps, "Google Maps Platform", "Альтернативный картографический сервис (через адаптер)", "HTTP/2")
+Rel(geo_system, google_maps, "Запрос картографических данных (опционально)", "HTTP/2")
+
+System_Ext(mapbox, "Mapbox", "Альтернативный картографический сервис (через адаптер)", "HTTP/2")
+Rel(geo_system, mapbox, "Запрос картографических данных (опционально)", "HTTP/2")
+
+System_Ext(auth_provider, "OAuth Provider (Google, Facebook)", "Аутентификация пользователей", "OAuth 2.0")
+Rel(device_owner, auth_provider, "Аутентификация", "OAuth 2.0")
+Rel(operator, auth_provider, "Аутентификация", "OAuth 2.0")
+Rel(business_user, auth_provider, "Аутентификация", "OAuth 2.0")
+Rel(third_party, auth_provider, "Аутентификация", "OAuth 2.0")
+
+@enduml

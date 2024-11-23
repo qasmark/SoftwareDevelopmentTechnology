@@ -1,0 +1,44 @@
+@startuml
+!include <c4/C4_Container>
+
+System_Boundary(c1, "Система Геолокации") {
+    Container(mobile_app, "Мобильное приложение", "Flutter", "Сбор геоданных, отображение на карте, просмотр истории, уведомления о геозонах", $sprite="react")
+    Container(web_app, "Веб-приложение", "Flutter Web", "Управление устройствами, просмотр аналитики, настройка геозон, управление пользователями", $sprite="react")
+    Container(api_gateway, "API Gateway", "Nginx", "Балансировка нагрузки, маршрутизация, аутентификация (JWT, OAuth 2.0)", $sprite="nginx")
+    Container(geo_service, "Сервис Геолокации", "Go", "Обработка геоданных, бизнес-логика (геозоны, уведомления), взаимодействие с Kafka", $sprite="go")
+    ContainerDb(cockroachdb, "CockroachDB", "CockroachDB", "Хранение геоданных, геозон", $sprite="cockroachdb")
+    ContainerDb(timescaledb, "TimescaleDB", "TimescaleDB", "Хранение истории перемещений", $sprite="timescaledb")
+    ContainerDb(redis, "Redis", "Redis", "Кэширование данных (местоположение, геозоны)", $sprite="redis")
+    ContainerQueue(kafka, "Kafka", "Apache Kafka", "Обработка геоданных в реальном времени", $sprite="kafka")
+    Container(vault, "Vault", "HashiCorp Vault", "Хранение секретов (токены, API ключи)", $sprite="vault")
+    Container(monitoring, "Мониторинг", "Prometheus + Grafana + ELK", "Сбор метрик, логов, оповещения")
+
+    Rel(mobile_app, api_gateway, "Запросы, отправка геоданных, аутентификация", "HTTP/2, WebSockets, OAuth 2.0")
+    Rel(web_app, api_gateway, "Запросы, управление, аутентификация", "HTTP/2, OAuth 2.0")
+    Rel(api_gateway, geo_service, "Маршрутизация запросов", "HTTP/2")
+    Rel(geo_service, cockroachdb, "Запись/чтение данных", "SQL")
+    Rel(geo_service, timescaledb, "Запись/чтение истории", "SQL")
+    Rel(geo_service, redis, "Запись/чтение кэша", "Redis protocol")
+    Rel(geo_service, kafka, "Отправка/получение геоданных", "Kafka protocol")
+    Rel(geo_service, vault, "Получение секретов", "Vault API")
+    Rel(mobile_app, kafka, "Отправка геоданных в реальном времени", "Kafka protocol")
+    Rel(geo_service, monitoring, "Отправка метрик и логов", "")
+    Rel(api_gateway, monitoring, "Отправка метрик и логов", "")
+    Rel(web_app, monitoring, "Отправка метрик и логов", "")
+
+}
+
+System_Ext(osm, "OpenStreetMap", "Предоставление картографических данных", "HTTP/2")
+Rel(geo_service, osm, "Запрос карт", "HTTP/2")
+
+System_Ext(google_maps, "Google Maps Platform", "Альтернативный картографический сервис (через адаптер)", "HTTP/2")
+Rel(geo_service, google_maps, "Запрос картографических данных (опционально)", "HTTP/2")
+
+System_Ext(mapbox, "Mapbox", "Альтернативный картографический сервис (через адаптер)", "HTTP/2")
+Rel(geo_service, mapbox, "Запрос картографических данных (опционально)", "HTTP/2")
+
+System_Ext(auth_provider, "OAuth Provider (Google, Facebook)", "Аутентификация пользователей", "OAuth 2.0")
+Rel(mobile_app, auth_provider, "Аутентификация", "OAuth 2.0")
+Rel(web_app, auth_provider, "Аутентификация", "OAuth 2.0")
+
+@enduml
