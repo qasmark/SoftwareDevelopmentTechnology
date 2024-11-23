@@ -1,0 +1,86 @@
+@startuml Deployment
+!include <c4/C4_Deployment>
+
+Deployment_Node(yandex_cloud, "Yandex Cloud", "Yandex Cloud Region 1", "linux") {
+  Deployment_Node(k8s_cluster, "Kubernetes Cluster", "k8s", $sprite="kubernetes"){
+    Deployment_Node(geo_pods, "Geolocation Service Pods", "k8s deployment", "go"){
+      Container(geo_service_instance1, "Geolocation Service Instance 1", "Go", "Обработка геоданных, бизнес-логика")
+      Container(geo_service_instance2, "Geolocation Service Instance 2", "Go", "Обработка геоданных, бизнес-логика")
+    }
+
+    Deployment_Node(api_gateway_pods, "API Gateway Pods", "k8s deployment", "nginx"){
+      Container(api_gateway_instance1, "API Gateway Instance 1", "Nginx", "Балансировка, маршрутизация, аутентификация")
+      Container(api_gateway_instance2, "API Gateway Instance 2", "Nginx", "Балансировка, маршрутизация, аутентификация")
+      Rel(api_gateway_instance1, geo_pods, "Маршрутизирует", "HTTP")
+      Rel(api_gateway_instance2, geo_pods, "Маршрутизирует", "HTTP")
+    }
+
+    Deployment_Node(auth_pods, "Authentication Service Pods", "k8s deployment", "go"){
+      Container(auth_service_instance1, "Auth Service Instance 1", "Go", "Аутентификация")
+      Container(auth_service_instance2, "Auth Service Instance 2", "Go", "Аутентификация")
+    }
+
+    Deployment_Node(user_pods, "User Service Pods", "k8s deployment", "go"){
+      Container(user_service_instance1, "User Service Instance 1", "Go", "Управление пользователями")
+      Container(user_service_instance2, "User Service Instance 2", "Go", "Управление пользователями")
+    }
+
+    Deployment_Node(monitoring, "Monitoring Stack", "k8s deployments", "docker"){
+      Container(prometheus, "Prometheus", "Prometheus", "Сбор метрик")
+      Container(grafana, "Grafana", "Grafana", "Визуализация")
+      Container(elastic, "Elasticsearch", "Elasticsearch", "Логи")
+      Container(kibana, "Kibana", "Kibana", "Визуализация логов")
+      Rel(prometheus, geo_pods, "Собирает метрики", "")
+      Rel(prometheus, api_gateway_pods, "Собирает метрики", "")
+      Rel(prometheus, auth_pods, "Собирает метрики", "")
+      Rel(prometheus, user_pods, "Собирает метрики", "")
+    }
+  }
+
+  Deployment_Node(db_cluster, "CockroachDB Cluster", "CockroachDB Cluster", "linux"){
+        Container(cockroachdb_primary, "CockroachDB Primary", "CockroachDB", "Primary Node (RW)")
+        Container(cockroachdb_secondary1, "CockroachDB Secondary 1", "CockroachDB", "Secondary Node (RO)")
+        Container(cockroachdb_secondary2, "CockroachDB Secondary 2", "CockroachDB", "Secondary Node (RO)")
+        Container(cockroachdb_secondary3, "CockroachDB Secondary 3", "CockroachDB", "Secondary Node (RO)")
+
+        Rel_R(cockroachdb_primary, cockroachdb_secondary1, "Репликация", "")
+        Rel_R(cockroachdb_primary, cockroachdb_secondary2, "Репликация", "")
+        Rel_R(cockroachdb_primary, cockroachdb_secondary3, "Репликация", "")
+  }
+
+Rel(geo_service_instance1, cockroachdb_primary, "Читает/пишет (RW)", "JDBC")
+Rel(geo_service_instance2, cockroachdb_primary, "Читает/пишет (RW)", "JDBC")
+Rel(auth_service_instance1, cockroachdb_secondary1, "Читает (RO)", "JDBC")
+Rel(user_service_instance1, cockroachdb_secondary2, "Читает (RO)", "JDBC")
+
+  Deployment_Node(timescaledb_node, "TimescaleDB Node", "TimescaleDB", "linux") {
+    Container(timescaledb, "TimescaleDB", "TimescaleDB", "Хранение истории")
+  }
+
+  Deployment_Node(redis_node, "Redis Node", "Redis Cluster", "linux") {
+    Container(redis, "Redis", "Redis", "Кэш")
+  }
+
+  Deployment_Node(kafka_cluster, "Kafka Cluster", "Kafka Cluster", "linux") {
+    Container(kafka, "Kafka", "Kafka", "Очередь сообщений")
+  }
+
+  Deployment_Node(vault_node, "Vault Node", "Vault Server", "linux") {
+    Container(vault, "Vault", "HashiCorp Vault", "Хранилище секретов")
+  }
+}
+
+Rel(mobile_app, api_gateway_instance1, "Отправляет запросы", "HTTPS, WebSockets")
+Rel(web_app, api_gateway_instance1, "Отправляет запросы", "HTTPS")
+
+System_Ext(osm, "OpenStreetMap", "Предоставление картографических данных")
+Rel(geo_pods, osm, "Запрашивает карты", "API")
+
+System_Ext(oauth_providers, "OAuth Providers", "Аутентификация")
+Rel(api_gateway_pods, oauth_providers, "Аутентификация", "OAuth 2.0")
+Rel(mobile_app, oauth_providers, "Аутентификация", "OAuth 2.0")
+Rel(web_app, oauth_providers, "Аутентификация", "OAuth 2.0")
+
+
+
+@enduml
