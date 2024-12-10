@@ -1,4 +1,4 @@
-@startuml Components
+@startuml
 !include <C4/C4_Component>
 
 System_Boundary(external_systems, "Внешние системы", " ") {
@@ -27,40 +27,48 @@ System_Boundary(geo_service_boundary, "Гео Сервис") {
   Component(geocoding_api, "Geocoding API", "Go", "REST API для геокодирования: \n - /geocode (GET): Преобразование адреса в координаты \n - /reverse (GET): Преобразование координат в адрес")
 
   ' Внутренние компоненты
-  Component(location_receiver, "Приемник геоданных", "Go", "Получает данные от устройств через Kafka, проверяет авторизацию через заголовок")
-  Component(location_processor, "Обработчик геоданных", "Go", "Валидация, обработка и сохранение геоданных. \n - Проверка формата данных. \n - Обогащение данных (страна, город и т.д.) \n - Сохранение в Geo Service DB и TimescaleDB")
   Component(geofence_engine, "Движок геозон", "Go", "Определение пересечения геозон. \n - Получает обновления геоданных из location_processor. \n - Сравнивает местоположение с геозонами из Geofence Service. \n - При совпадении генерирует событие в notification_trigger.")
   Component(geocoder, "Геокодер", "Go", "Преобразование адресов в координаты и обратно. \n - Кэширование результатов в Redis.")
   Component(data_validator, "Валидатор данных", "Go", "Проверка корректности геоданных (координаты, timestamp, и т.д.)")
   Component(data_enricher, "Обогатитель данных", "Go", "Добавление дополнительной информации к геоданным (например, страна, город) используя внешние сервисы")
+  Component(location_receiver, "Приемник геоданных", "Go", "Получает данные от устройств через Kafka, проверяет авторизацию через заголовок")
+  Component(location_processor, "Обработчик геоданных", "Go", "Обработка и сохранение геоданных. \n - Проверка формата данных. \n - Обогащение данных (страна, город и т.д.) \n - Сохранение в Geo Service DB и TimescaleDB")
   Component(notification_trigger, "Триггер уведомлений", "Go", "Инициирует отправку уведомлений через Notification Service при срабатывании событий от Geofence Engine")
   Component(history_manager, "Менеджер истории", "Go", "Управление историей перемещений устройств. \n - Запись в TimescaleDB. \n - Агрегация данных для аналитики.")
   Component(location_repo, "Location Repository", "Go", "Отвечает за сохранение и получение геоданных из БД. \n - Использует паттерн Repository для абстрагирования от деталей работы с БД.")
   Component(history_repo, "History Repository", "Go", "Отвечает за сохранение и получение истории перемещений из TimescaleDB. \n - Использует паттерн Repository.")
   Component(geocoding_cache, "Geocoding Cache", "Go", "Отвечает за кэширование результатов геокодирования в Redis. \n - Использует паттерн Repository.")
+
   ' Связи API с акторами и другими компонентами
-  Rel(device_owner, location_api, "Отправляет геоданные, получает историю", "HTTP/2")
-  Rel(operator, geofence_api, "Управляет геозонами", "HTTP/2")
-  Rel(operator, geocoding_api, "Запросы геокодирования", "HTTP/2")
-  Rel(business_user, geofence_api, "Управляет геозонами", "HTTP/2")
-  Rel(business_user, geocoding_api, "Запросы геокодирования", "HTTP/2")
-  Rel(third_party, location_api, "Получает геоданные", "HTTP/2")
-  Rel(third_party, geofence_api, "Получает данные геозон", "HTTP/2")
-  Rel(third_party, geocoding_api, "Запросы геокодирования", "HTTP/2")
+  Rel(device_owner, api_gateway, "Отправляет геоданные, получает историю", "HTTP/2")
+
+  Rel(operator, api_gateway, "Управляет геозонами", "HTTP/2")
+  Rel(operator, api_gateway, "Запросы геокодирования", "HTTP/2")
+
+  Rel(business_user, api_gateway, "Управляет геозонами", "HTTP/2")
+  Rel(business_user, api_gateway, "Запросы геокодирования", "HTTP/2")
+
+  Rel(third_party, api_gateway, "Получает геоданные", "HTTP/2")
+  Rel(third_party, api_gateway, "Получает данные геозон", "HTTP/2")
+  Rel(third_party, api_gateway, "Запросы геокодирования", "HTTP/2")
 
   Rel(api_gateway, location_api, "Запросы к API", "HTTP/2")
   Rel(api_gateway, geofence_api, "Запросы к API", "HTTP/2")
   Rel(api_gateway, geocoding_api, "Запросы к API", "HTTP/2")
 
-  Rel(location_api, location_processor, "Обработка запросов", "Internal Call")
   Rel(geofence_api, geofence_engine, "Обработка запросов", "Internal Call")
   Rel(geocoding_api, geocoder, "Обработка запросов", "Internal Call")
+  Rel(location_api, data_validator, "Валидация данных", "Internal Call")
 
-  Rel(location_receiver, kafka, "Получение геоданных", "Kafka Consumer")
-  Rel(location_receiver, data_validator, "Валидация данных", "Internal Call")
-  Rel(data_validator, location_processor, "Передача валидных данных", "Internal Call")
+  ' Обработка данных
+  Rel(data_validator, kafka, "Публикация события о получении новых данных", "Kafka Producer")
+  Rel(kafka, location_receiver, "Получение геоданных", "Kafka Consumer")
+  
+  Rel(location_receiver, location_processor, "Отправка данных на обработку", "Internal Call")
   Rel(location_processor, data_enricher, "Обогащение данных", "Internal Call")
+
   Rel(data_enricher, location_repo, "Сохранение обогащенных данных", "Internal Call")
+  
   Rel(location_processor, history_repo, "Сохранение истории", "Internal Call")
   Rel(location_processor, redis, "Кэширование текущего местоположения", "Redis Protocol")
   Rel(location_processor, geofence_engine, "Передача обновленных геоданных", "Internal Call")
@@ -86,5 +94,4 @@ Rel(geo_service_timescale, vault, "Получение секретов", "Vault 
 
 Rel_R(openstreetmap, google_maps, "", "transparent")
 Rel_R(google_maps, mapbox, "", "transparent")
-
 @enduml
