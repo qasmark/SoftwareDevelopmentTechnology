@@ -1,83 +1,103 @@
 @startuml Components
 !include <C4/C4_Component>
 
-Person(device_owner, "Владелец устройства")
-Person(operator, "Оператор системы")
-Person(business_user, "Бизнес-пользователь")
-Person(third_party, "Третьи стороны")
-
-System_Boundary(c1, "Система Геолокации") {
-Container(api_gateway, "API Gateway", "Nginx", "Балансировка, маршрутизация, аутентификация")
-Container(geo_service, "Гео сервис", "Go", "Обработка геоданных, бизнес-логика")
-Container(auth_service, "Сервис аутентификации", "Go", "Аутентификация (JWT, OAuth 2.0)")
-Container(user_service, "Сервис пользователей", "Go", "Управление пользователями")
-Container(device_service, "Сервис устройств", "Go", "Управление устройствами")
-Container(geofence_service, "Сервис геозон", "Go", "Управление геозонами")
-Container(notification_service, "Сервис уведомлений", "Go", "Отправка уведомлений")
-Container(analytics_service, "Сервис аналитики", "Go", "Аналитика и отчеты")
-
-Container(mobile_app, "Мобильное приложение", "Flutter", "Flutter, Dart")
-Container(web_app, "Веб-приложение", "Flutter Web", "Управление устройствами, аналитика")
-
-ContainerDb(geo_service_db, "Geo Service DB", "CockroachDB", "Хранение геоданных, геозон")
-ContainerDb(geo_service_timescale, "Geo Service Timescale", "TimescaleDB", "Хранение истории перемещений")
-ContainerDb(auth_service_db, "Auth Service DB", "CockroachDB", "Хранение данных пользователей")
-ContainerDb(user_service_db, "User Service DB", "CockroachDB", "Хранение данных пользователей")
-ContainerDb(device_service_db, "Device Service DB", "CockroachDB", "Хранение данных устройств")
-ContainerDb(geofence_service_db, "Geofence Service DB", "CockroachDB", "Хранение данных геозон")
-ContainerDb(analytics_service_db, "Analytics Service DB", "CockroachDB", "Хранение данных для аналитики")
-
-ContainerDb(redis, "Redis", "Redis", "Кэширование данных")
-ContainerQueue(kafka, "Kafka", "Apache Kafka", "Обработка данных в реальном времени")
-Container(vault, "Vault", "HashiCorp Vault", "Хранение конфиденциальных данных")
-
-Rel(device_owner, mobile_app, "Взаимодействие", "HTTP/2, WebSockets")
-Rel(operator, web_app, "Взаимодействие", "HTTP/2")
-Rel(business_user, web_app, "Взаимодействие", "HTTP/2")
-Rel(third_party, api_gateway, "Взаимодействие", "HTTP/2")
-
-Rel(mobile_app, api_gateway, "Запросы, геоданные, аутентификация", "HTTP/2, WebSockets, OAuth 2.0")
-Rel(web_app, api_gateway, "Запросы, управление, аутентификация", "HTTP/2, OAuth 2.0")
-Rel(api_gateway, geo_service, "Маршрутизация запросов", "HTTP/2")
-Rel(api_gateway, auth_service, "Аутентификация", "HTTP/2")
-Rel(api_gateway, user_service, "Запросы к user_service", "HTTP/2")
-Rel(api_gateway, device_service, "Запросы к device_service", "HTTP/2")
-Rel(api_gateway, geofence_service, "Запросы к geofence_service", "HTTP/2")
-Rel(api_gateway, notification_service, "Запросы к notification_service", "HTTP/2")
-Rel(api_gateway, analytics_service, "Запросы к analytics_service", "HTTP/2")
-
-Rel(geo_service, geofence_service, "Работа с геозонами", "gRPC")
-Rel(geo_service, notification_service, "Отправка уведомлений", "gRPC")
-Rel(geo_service, device_service, "Информация об устройствах", "gRPC")
-Rel(geo_service, user_service, "Информация о пользователях", "gRPC")
-Rel(auth_service, user_service, "Работа с пользователями", "gRPC")
-Rel(analytics_service, geo_service, "Получение геоданных", "gRPC")
-
-Rel(geo_service, geo_service_db, "Хранение геоданных, геозон", "JDBC")
-Rel(geo_service, geo_service_timescale, "Хранение истории перемещений", "JDBC")
-Rel(geo_service, redis, "Кэширование данных", "Redis Protocol")
-Rel(geo_service, kafka, "Получение геоданных от устройств", "Kafka Consumer")
-Rel(geo_service, vault, "Получение секретов", "Vault API")
-
-Rel(auth_service, auth_service_db, "Чтение/запись данных", "SQL")
-Rel(auth_service, vault, "Получение секретов", "Vault API")
-
-Rel(user_service, user_service_db, "Чтение/запись данных", "SQL")
-Rel(user_service, vault, "Получение секретов", "Vault API")
-
-Rel(device_service, device_service_db, "Чтение/запись данных", "SQL")
-Rel(device_service, vault, "Получение секретов", "Vault API")
-
-Rel(geofence_service, geofence_service_db, "Чтение/запись данных", "SQL")
-Rel(geofence_service, vault, "Получение секретов", "Vault API")
-
-Rel(notification_service, vault, "Получение секретов", "Vault API")
-
-Rel(analytics_service, analytics_service_db, "Чтение данных", "SQL")
-Rel(analytics_service, vault, "Получение секретов", "Vault API")
+' Акторы
+together { 
+  Person(device_owner, "Владелец устройства")
+  Person(operator, "Оператор системы")
+  Person(business_user, "Бизнес-пользователь")
+  Person(third_party, "Третьи стороны")
 }
 
-System_Boundary(external_systems, "Внешние системы", " ") {
+System_Boundary(c1, "Система Геолокации") {
+  ' Контейнеры
+  Container(api_gateway, "API Gateway", "Nginx", "Балансировка, маршрутизация, аутентификация")
+  Container(geo_service, "Гео сервис", "Go", "Обработка геоданных, бизнес-логика")
+  Container(auth_service, "Сервис аутентификации", "Go", "Аутентификация (JWT, OAuth 2.0)")
+  Container(user_service, "Сервис пользователей", "Go", "Управление пользователями")
+  Container(device_service, "Сервис устройств", "Go", "Управление устройствами")
+  Container(geofence_service, "Сервис геозон", "Go", "Управление геозонами")
+  Container(notification_service, "Сервис уведомлений", "Go", "Отправка уведомлений")
+  Container(analytics_service, "Сервис аналитики", "Go", "Аналитика и отчеты")
+  Container(mobile_app, "Мобильное приложение", "Flutter", "Flutter, Dart")
+  Container(web_app, "Веб-приложение", "Flutter Web", "Управление устройствами, аналитика")
+  ContainerDb(geo_service_db, "Geo Service DB", "CockroachDB", "Хранение геоданных, геозон")
+  ContainerDb(geo_service_timescale, "Geo Service Timescale", "TimescaleDB", "Хранение истории перемещений")
+  ContainerDb(auth_service_db, "Auth Service DB", "CockroachDB", "Хранение данных пользователей")
+  ContainerDb(user_service_db, "User Service DB", "CockroachDB", "Хранение данных пользователей")
+  ContainerDb(device_service_db, "Device Service DB", "CockroachDB", "Хранение данных устройств")
+  ContainerDb(geofence_service_db, "Geofence Service DB", "CockroachDB", "Хранение данных геозон")
+  ContainerDb(analytics_service_db, "Analytics Service DB", "CockroachDB", "Хранение данных для аналитики")
+  ContainerDb(redis, "Redis", "Redis", "Кэширование данных")
+  ContainerQueue(kafka, "Kafka", "Apache Kafka", "Обработка данных в реальном времени")
+  Container(vault, "Vault", "HashiCorp Vault", "Хранение конфиденциальных данных")
+
+  ' Связи акторов с системой
+  Rel(device_owner, mobile_app, "Взаимодействие", "HTTP/2, WebSockets")
+  Rel(operator, web_app, "Взаимодействие", "HTTP/2")
+  Rel(business_user, web_app, "Взаимодействие", "HTTP/2")
+  Rel(third_party, api_gateway, "Взаимодействие", "HTTP/2")
+
+  ' Связи внутри системы
+  Rel(mobile_app, api_gateway, "Запросы, геоданные, аутентификация", "HTTP/2, WebSockets, OAuth 2.0")
+  Rel(web_app, api_gateway, "Запросы, управление, аутентификация", "HTTP/2, OAuth 2.0")
+  Rel(api_gateway, geo_service, "Маршрутизация запросов", "HTTP/2")
+  Rel(api_gateway, auth_service, "Аутентификация", "HTTP/2")
+  Rel(api_gateway, user_service, "Запросы к user_service", "HTTP/2")
+  Rel(api_gateway, device_service, "Запросы к device_service", "HTTP/2")
+  Rel(api_gateway, geofence_service, "Запросы к geofence_service", "HTTP/2")
+  Rel(api_gateway, notification_service, "Запросы к notification_service", "HTTP/2")
+  Rel(api_gateway, analytics_service, "Запросы к analytics_service", "HTTP/2")
+
+  Rel(geo_service, geofence_service, "Работа с геозонами", "gRPC")
+  Rel(geo_service, notification_service, "Отправка уведомлений", "gRPC")
+  Rel(geo_service, device_service, "Информация об устройствах", "gRPC")
+  Rel(geo_service, user_service, "Информация о пользователях", "gRPC")
+  Rel(auth_service, user_service, "Работа с пользователями", "gRPC")
+  Rel(analytics_service, geo_service, "Получение геоданных", "gRPC")
+
+  Rel(geo_service, geo_service_db, "Хранение геоданных, геозон", "JDBC")
+  Rel(geo_service, geo_service_timescale, "Хранение истории перемещений", "JDBC")
+  Rel(geo_service, redis, "Кэширование данных", "Redis Protocol")
+  Rel(geo_service, kafka, "Получение геоданных от устройств", "Kafka Consumer")
+  Rel(geo_service, vault, "Получение секретов", "Vault API")
+
+  Rel(auth_service, auth_service_db, "Чтение/запись данных", "SQL")
+  Rel(auth_service, vault, "Получение секретов", "Vault API")
+
+  Rel(user_service, user_service_db, "Чтение/запись данных", "SQL")
+  Rel(user_service, vault, "Получение секретов", "Vault API")
+
+  Rel(device_service, device_service_db, "Чтение/запись данных", "SQL")
+  Rel(device_service, vault, "Получение секретов", "Vault API")
+
+  Rel(geofence_service, geofence_service_db, "Чтение/запись данных", "SQL")
+  Rel(geofence_service, vault, "Получение секретов", "Vault API")
+
+  Rel(notification_service, vault, "Получение секретов", "Vault API")
+
+  Rel(analytics_service, analytics_service_db, "Чтение данных", "SQL")
+  Rel(analytics_service, vault, "Получение секретов", "Vault API")
+
+    together {
+      Rel(geo_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(auth_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(user_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(device_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(geofence_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(notification_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(analytics_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(geo_service, kafka, "Подписка на события", "Kafka Consumer")
+      Rel(auth_service, kafka, "Подписка на события", "Kafka Consumer")
+      Rel(user_service, kafka, "Подписка на события", "Kafka Consumer")
+      Rel(device_service, kafka, "Подписка на события", "Kafka Consumer")
+      Rel(geofence_service, kafka, "Подписка на события", "Kafka Consumer")
+      Rel(notification_service, kafka, "Подписка на события", "Kafka Consumer")
+      Rel(analytics_service, kafka, "Подписка на события", "Kafka Consumer")
+    }
+}
+
+together {
   System_Ext(openstreetmap, "OpenStreetMap", "Картографический сервис")
   System_Ext(oauth_providers, "OAuth провайдеры", "Аутентификация")
   System_Ext(monitoring_tools, "Prometheus, Grafana, ELK", "Мониторинг")

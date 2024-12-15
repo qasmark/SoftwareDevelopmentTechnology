@@ -1,12 +1,14 @@
 @startuml
 !include <c4/C4_Container>
 
-Person(device_owner, "Владелец устройства", "Мониторинг местоположения, просмотр истории")
-Person(operator, "Оператор системы", "Управление данными, отчеты, доступ")
-Person(business_user, "Бизнес-пользователь", "Анализ геоданных, интеграция")
-Person(third_party, "Третьи стороны", "Получение геоданных через API")
+together {
+  Person(device_owner, "Владелец устройства", "Мониторинг местоположения, просмотр истории")
+  Person(operator, "Оператор системы", "Управление данными, отчеты, доступ")
+  Person(business_user, "Бизнес-пользователь", "Анализ геоданных, интеграция")
+  Person(third_party, "Третьи стороны", "Получение геоданных через API")
+}
 
-System_Boundary(c1, "Система Геолокации") {
+System_Boundary(c1, "Система Геолокации (в кластере Kubernetes)") {
   ' Уровень фронтенда
   Container(mobile_app, "Мобильное приложение", "Flutter", "Сбор геоданных, карта, история, уведомления", $sprite="react")
   Container(web_app, "Веб-приложение", "Flutter Web", "Управление устройствами, аналитика, геозоны, пользователи", $sprite="react")
@@ -21,7 +23,10 @@ System_Boundary(c1, "Система Геолокации") {
   Container(notification_service, "Сервис Уведомлений", "Go", "Отправка уведомлений (push, email)", $sprite="go")
   Container(analytics_service, "Сервис Аналитики", "Go", "Аналитика и отчеты", $sprite="go")
 
-  ' Уровень БД, очередей, кэша
+  ' Шина событий Kafka (один инстанс в контексте Kubernetes)
+  ContainerDb(kafka, "Kafka", "Apache Kafka", "Шина событий", $sprite="kafka")
+
+  ' Уровень БД, кэша
   ContainerDb(geo_service_db, "Geo Service DB", "CockroachDB", "Хранение геоданных, геозон", $sprite="cockroachdb")
   ContainerDb(geo_service_timescale, "Geo Service Timescale", "TimescaleDB", "Хранение истории перемещений", $sprite="timescaledb")
   ContainerDb(auth_service_db, "Auth Service DB", "CockroachDB", "Хранение данных пользователей", $sprite="cockroachdb")
@@ -29,18 +34,16 @@ System_Boundary(c1, "Система Геолокации") {
   ContainerDb(device_service_db, "Device Service DB", "CockroachDB", "Хранение данных устройств", $sprite="cockroachdb")
   ContainerDb(geofence_service_db, "Geofence Service DB", "CockroachDB", "Хранение данных геозон", $sprite="cockroachdb")
   ContainerDb(analytics_service_db, "Analytics Service DB", "CockroachDB", "Хранение данных для аналитики", $sprite="cockroachdb")
-
   ContainerDb(redis, "Redis", "Redis", "Кэширование данных (местоположение, геозоны)", $sprite="redis")
-  ContainerQueue(kafka, "Kafka", "Apache Kafka", "Обработка геоданных в реальном времени", $sprite="kafka")
-  
-  ' Верхний уровень: Пользователи
+
+  ' Внешние системы в контексте Kubernetes
+  Container(vault, "Vault", "HashiCorp Vault", "Хранение секретов (токены, API ключи)", $sprite="vault")
+  Container(monitoring, "Мониторинг", "Prometheus + Grafana + ELK", "Сбор метрик, логов, оповещения")
+
   Rel(device_owner, mobile_app, "Взаимодействие", "HTTP/2, WebSockets")
   Rel(operator, web_app, "Взаимодействие", "HTTP/2")
   Rel(business_user, web_app, "Взаимодействие", "HTTP/2")
   Rel(third_party, api_gateway, "Взаимодействие", "HTTP/2")
-  ' Внешние системы
-  Container(vault, "Vault", "HashiCorp Vault", "Хранение секретов (токены, API ключи)", $sprite="vault")
-  Container(monitoring, "Мониторинг", "Prometheus + Grafana + ELK", "Сбор метрик, логов, оповещения")
 
   Rel(mobile_app, api_gateway, "Запросы, отправка геоданных, аутентификация", "HTTP/2, WebSockets, OAuth 2.0")
   Rel(web_app, api_gateway, "Запросы, управление, аутентификация", "HTTP/2, OAuth 2.0")
@@ -55,7 +58,7 @@ System_Boundary(c1, "Система Геолокации") {
   Rel(geo_service, geo_service_db, "Запись/чтение данных", "SQL")
   Rel(geo_service, geo_service_timescale, "Запись/чтение истории", "SQL")
   Rel(geo_service, redis, "Запись/чтение кэша", "Redis protocol")
-  Rel(geo_service, kafka, "Отправка/получение геоданных", "Kafka protocol")
+  Rel(geo_service, kafka, "Отправка/получение событий", "Kafka protocol")
   Rel(geo_service, vault, "Получение секретов", "Vault API")
 
   Rel(auth_service, auth_service_db, "Чтение/запись данных", "SQL")
@@ -86,19 +89,36 @@ System_Boundary(c1, "Система Геолокации") {
   Rel(geofence_service, monitoring, "Отправка метрик и логов", "")
   Rel(notification_service, monitoring, "Отправка метрик и логов", "")
   Rel(analytics_service, monitoring, "Отправка метрик и логов", "")
+
+  ' Связи между сервисами через Kafka
+    together {
+      Rel(geo_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(auth_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(user_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(device_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(geofence_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(notification_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(analytics_service, kafka, "Публикация событий", "Kafka Producer")
+      Rel(geo_service, kafka, "Подписка на события", "Kafka Consumer")
+      Rel(auth_service, kafka, "Подписка на события", "Kafka Consumer")
+      Rel(user_service, kafka, "Подписка на события", "Kafka Consumer")
+      Rel(device_service, kafka, "Подписка на события", "Kafka Consumer")
+      Rel(geofence_service, kafka, "Подписка на события", "Kafka Consumer")
+      Rel(notification_service, kafka, "Подписка на события", "Kafka Consumer")
+      Rel(analytics_service, kafka, "Подписка на события", "Kafka Consumer")
+    }
 }
 
-' Внешние системы 2
-System_Ext(osm, "OpenStreetMap", "Предоставление картографических данных", "HTTP/2")
-Rel(geo_service, osm, "Запрос карт", "HTTP/2")
+System_Boundary(external_systems, "Внешние системы", " ") {
+  System_Ext(openstreetmap, "OpenStreetMap", "Предоставление картографических данных", "HTTP/2")
+  System_Ext(google_maps, "Google Maps Platform", "Альтернативный картографический сервис (через адаптер)", "HTTP/2")
+  System_Ext(mapbox, "Mapbox", "Альтернативный картографический сервис (через адаптер)", "HTTP/2")
+  System_Ext(auth_provider, "OAuth Provider (Google, Facebook)", "Аутентификация пользователей", "OAuth 2.0")
+}
 
-System_Ext(google_maps, "Google Maps Platform", "Альтернативный картографический сервис (через адаптер)", "HTTP/2")
+Rel(geo_service, openstreetmap, "Запрос карт", "HTTP/2")
 Rel(geo_service, google_maps, "Запрос картографических данных (опционально)", "HTTP/2")
-
-System_Ext(mapbox, "Mapbox", "Альтернативный картографический сервис (через адаптер)", "HTTP/2")
 Rel(geo_service, mapbox, "Запрос картографических данных (опционально)", "HTTP/2")
-
-System_Ext(auth_provider, "OAuth Provider (Google, Facebook)", "Аутентификация пользователей", "OAuth 2.0")
 Rel(mobile_app, auth_provider, "Аутентификация", "OAuth 2.0")
 Rel(web_app, auth_provider, "Аутентификация", "OAuth 2.0")
 

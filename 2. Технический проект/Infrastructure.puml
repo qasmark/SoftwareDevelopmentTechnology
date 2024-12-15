@@ -1,18 +1,50 @@
 @startuml Deployment
 !include <c4/C4_Deployment>
 
-Deployment_Node(yandex_cloud, "Yandex Cloud", "Yandex Cloud Region 1", "linux") {
-  Deployment_Node(k8s_cluster, "Kubernetes Cluster", "k8s", $sprite="kubernetes"){
-    Deployment_Node(geo_pods, "Geolocation Service Pods", "k8s deployment", "go"){
-      Container(geo_service_instance1, "Geolocation Service Instance 1", "Go", "Обработка геоданных, бизнес-логика")
-      Container(geo_service_instance2, "Geolocation Service Instance 2", "Go", "Обработка геоданных, бизнес-логика")
-    }
+together {
+  Person(device_owner, "Владелец устройства", "Использует мобильное приложение")
+  Person(operator, "Оператор системы", "Использует веб-приложение")
+  Person(business_user, "Бизнес-пользователь", "Использует веб-приложение")
+  Person(third_party, "Третьи стороны", "Взаимодействует через API")
+}
+
+together {
+  System_Ext(osm, "OpenStreetMap", "Предоставление картографических данных")
+  System_Ext(oauth_providers, "OAuth Providers", "Аутентификация")
+}
+
+Deployment_Node(yandex_cloud, "Yandex Cloud", "", "Yandex Cloud") {
+  Deployment_Node(api_gw_and_apps, "API Gateway & Apps", "", "") {
+    Container(mobile_app, "Mobile App", "Flutter", "Мобильное приложение")
+    Container(web_app, "Web App", "Flutter Web", "Веб-приложение")
 
     Deployment_Node(api_gateway_pods, "API Gateway Pods", "k8s deployment", "nginx"){
       Container(api_gateway_instance1, "API Gateway Instance 1", "Nginx", "Балансировка, маршрутизация, аутентификация")
       Container(api_gateway_instance2, "API Gateway Instance 2", "Nginx", "Балансировка, маршрутизация, аутентификация")
-      Rel(api_gateway_instance1, geo_pods, "Маршрутизирует", "HTTP")
-      Rel(api_gateway_instance2, geo_pods, "Маршрутизирует", "HTTP")
+    }
+
+    Rel(device_owner, mobile_app, "Взаимодействие", "HTTPS, WebSockets")
+    Rel(operator, web_app, "Взаимодействие", "HTTPS")
+    Rel(business_user, web_app, "Взаимодействие", "HTTPS")
+    Rel(third_party, api_gateway_instance1, "Взаимодействие", "HTTPS")
+    Rel(third_party, api_gateway_instance2, "Взаимодействие", "HTTPS")
+
+    Rel(mobile_app, api_gateway_instance1, "Отправляет запросы", "HTTPS, WebSockets")
+    Rel(mobile_app, api_gateway_instance2, "Отправляет запросы", "HTTPS, WebSockets")
+    Rel(web_app, api_gateway_instance1, "Отправляет запросы", "HTTPS")
+    Rel(web_app, api_gateway_instance2, "Отправляет запросы", "HTTPS")
+
+    Rel(api_gateway_pods, oauth_providers, "Аутентификация", "OAuth 2.0")
+    Rel(mobile_app, oauth_providers, "Аутентификация", "OAuth 2.0")
+    Rel(web_app, oauth_providers, "Аутентификация", "OAuth 2.0")
+  }
+
+  Deployment_Node(services, "Services", "", "") {
+    Deployment_Node(geo_pods, "Geolocation Service Pods", "k8s deployment", "go"){
+      Container(location_receiver, "Location Receiver", "Go", "Принимает геоданные из Kafka")
+      Container(geocoder, "Geocoder", "Go", "Преобразует адреса в координаты и обратно")
+      Container(geo_service_instance1, "Geolocation Service Instance 1", "Go", "Обработка геоданных, бизнес-логика")
+      Container(geo_service_instance2, "Geolocation Service Instance 2", "Go", "Обработка геоданных, бизнес-логика")
     }
 
     Deployment_Node(auth_pods, "Authentication Service Pods", "k8s deployment", "go"){
@@ -25,62 +57,128 @@ Deployment_Node(yandex_cloud, "Yandex Cloud", "Yandex Cloud Region 1", "linux") 
       Container(user_service_instance2, "User Service Instance 2", "Go", "Управление пользователями")
     }
 
-    Deployment_Node(monitoring, "Monitoring Stack", "k8s deployments", "docker"){
-      Container(prometheus, "Prometheus", "Prometheus", "Сбор метрик")
-      Container(grafana, "Grafana", "Grafana", "Визуализация")
-      Container(elastic, "Elasticsearch", "Elasticsearch", "Логи")
-      Container(kibana, "Kibana", "Kibana", "Визуализация логов")
-      Rel(prometheus, geo_pods, "Собирает метрики", "")
-      Rel(prometheus, api_gateway_pods, "Собирает метрики", "")
-      Rel(prometheus, auth_pods, "Собирает метрики", "")
-      Rel(prometheus, user_pods, "Собирает метрики", "")
+    Deployment_Node(geofence_pods, "Geofence Service Pods", "k8s deployment", "go"){
+      Container(geofence_service_instance1, "Geofence Service Instance 1", "Go", "Управление геозонами")
+      Container(geofence_service_instance2, "Geofence Service Instance 2", "Go", "Управление геозонами")
     }
+
+    Deployment_Node(notification_pods, "Notification Service Pods", "k8s deployment", "go"){
+      Container(notification_service_instance1, "Notification Service Instance 1", "Go", "Отправка уведомлений")
+      Container(notification_service_instance2, "Notification Service Instance 2", "Go", "Отправка уведомлений")
+    }
+
+    ' Связи API Gateway
+    Rel(api_gateway_instance1, geo_service_instance1, "Маршрутизирует", "HTTP")
+    Rel(api_gateway_instance1, geo_service_instance2, "Маршрутизирует", "HTTP")
+    Rel(api_gateway_instance2, geo_service_instance1, "Маршрутизирует", "HTTP")
+    Rel(api_gateway_instance2, geo_service_instance2, "Маршрутизирует", "HTTP")
+    Rel(api_gateway_instance1, auth_service_instance1, "Маршрутизирует", "HTTP")
+    Rel(api_gateway_instance2, auth_service_instance2, "Маршрутизирует", "HTTP")
+    Rel(api_gateway_instance1, user_service_instance1, "Маршрутизирует", "HTTP")
+    Rel(api_gateway_instance2, user_service_instance2, "Маршрутизирует", "HTTP")
+    Rel(api_gateway_instance1, geofence_service_instance1, "Маршрутизирует", "HTTP")
+    Rel(api_gateway_instance2, geofence_service_instance2, "Маршрутизирует", "HTTP")
+    Rel(api_gateway_instance1, notification_service_instance1, "Маршрутизирует", "HTTP")
+    Rel(api_gateway_instance2, notification_service_instance2, "Маршрутизирует", "HTTP")
+
+    Rel(geo_pods, osm, "Запрашивает карты", "API")
   }
 
-  Deployment_Node(db_cluster, "CockroachDB Cluster", "CockroachDB Cluster", "linux"){
-        Container(cockroachdb_primary, "CockroachDB Primary", "CockroachDB", "Primary Node (RW)")
-        Container(cockroachdb_secondary1, "CockroachDB Secondary 1", "CockroachDB", "Secondary Node (RO)")
-        Container(cockroachdb_secondary2, "CockroachDB Secondary 2", "CockroachDB", "Secondary Node (RO)")
-        Container(cockroachdb_secondary3, "CockroachDB Secondary 3", "CockroachDB", "Secondary Node (RO)")
+  ' Уровень баз данных и хранилищ (Databases & Storages)
+  Deployment_Node(databases, "Databases & Storages", "", "") {
+    Deployment_Node(db_cluster_eu, "CockroachDB Cluster (Europe)", "CockroachDB", "linux"){
+      ContainerDb(cockroachdb_eu1, "CockroachDB Node 1 (EU)", "CockroachDB", "Primary (RW)")
+      ContainerDb(cockroachdb_eu2, "CockroachDB Node 2 (EU)", "CockroachDB", "Secondary (RO)")
+      ContainerDb(cockroachdb_eu3, "CockroachDB Node 3 (EU)", "CockroachDB", "Secondary (RO)")
+      Rel(cockroachdb_eu1, cockroachdb_eu2, "Репликация", "gRPC")
+      Rel(cockroachdb_eu1, cockroachdb_eu3, "Репликация", "gRPC")
+    }
 
-        Rel_R(cockroachdb_primary, cockroachdb_secondary1, "Репликация", "")
-        Rel_R(cockroachdb_primary, cockroachdb_secondary2, "Репликация", "")
-        Rel_R(cockroachdb_primary, cockroachdb_secondary3, "Репликация", "")
+    Deployment_Node(db_cluster_asia, "CockroachDB Cluster (Asia)", "CockroachDB", "linux"){
+      ContainerDb(cockroachdb_asia1, "CockroachDB Node 1 (Asia)", "CockroachDB", "Primary (RW)")
+      ContainerDb(cockroachdb_asia2, "CockroachDB Node 2 (Asia)", "CockroachDB", "Secondary (RO)")
+      Rel(cockroachdb_asia1, cockroachdb_asia2, "Репликация", "gRPC")
+    }
+
+    Deployment_Node(db_cluster_au, "CockroachDB Cluster (Australia)", "CockroachDB", "linux"){
+      ContainerDb(cockroachdb_au1, "CockroachDB Node 1 (AU)", "CockroachDB", "Primary (RW)")
+      ContainerDb(cockroachdb_au2, "CockroachDB Node 2 (AU)", "CockroachDB", "Secondary (RO)")
+      Rel(cockroachdb_au1, cockroachdb_au2, "Репликация", "gRPC")
+    }
+
+    Deployment_Node(db_cluster_us, "CockroachDB Cluster (US)", "CockroachDB", "linux"){
+      ContainerDb(cockroachdb_us1, "CockroachDB Node 1 (US)", "CockroachDB", "Primary (RW)")
+      ContainerDb(cockroachdb_us2, "CockroachDB Node 2 (US)", "CockroachDB", "Secondary (RO)")
+      ContainerDb(cockroachdb_us3, "CockroachDB Node 3 (US)", "CockroachDB", "Secondary (RO)")
+      Rel(cockroachdb_us1, cockroachdb_us2, "Репликация", "gRPC")
+      Rel(cockroachdb_us1, cockroachdb_us3, "Репликация", "gRPC")
+    }
+
+    Deployment_Node(timescaledb_node, "TimescaleDB Node", "TimescaleDB", "linux") {
+      ContainerDb(timescaledb, "TimescaleDB", "TimescaleDB", "Хранение истории")
+    }
+
+    Deployment_Node(redis_node, "Redis Node", "Redis Cluster", "linux") {
+      ContainerDb(redis, "Redis", "Redis", "Кэш")
+    }
+
+    Deployment_Node(kafka_cluster, "Kafka Cluster", "Kafka Cluster", "linux") {
+      ContainerQueue(kafka, "Kafka", "Kafka", "Очередь сообщений")
+    }
+
+    Deployment_Node(vault_node, "Vault Node", "Vault Server", "linux") {
+      Container(vault, "Vault", "HashiCorp Vault", "Хранилище секретов")
+    }
+
+    Rel(geo_service_instance1, cockroachdb_eu1, "Запись и чтение геоданных", "JDBC")
+    Rel(geo_service_instance2, cockroachdb_eu2, "Чтение геоданных", "JDBC")
+    Rel(auth_service_instance1, cockroachdb_asia1, "Запись и чтение данных аутентификации", "JDBC")
+    Rel(auth_service_instance2, cockroachdb_asia2, "Чтение данных аутентификации", "JDBC")
+    Rel(user_service_instance1, cockroachdb_us1, "Запись и чтение данных пользователей", "JDBC")
+    Rel(user_service_instance2, cockroachdb_us2, "Чтение данных пользователей", "JDBC")
+    Rel(geofence_service_instance1, cockroachdb_au1, "Запись и чтение геозон", "JDBC")
+    Rel(geofence_service_instance2, cockroachdb_au2, "Чтение геозон", "JDBC")
+    Rel(notification_service_instance1, cockroachdb_eu1, "Запись данных уведомлений", "JDBC")
+    Rel(notification_service_instance2, cockroachdb_eu2, "Чтение данных уведомлений", "JDBC")
+
+    Rel(geo_service_instance1, timescaledb, "Запись истории", "JDBC")
+    Rel(geo_service_instance2, timescaledb, "Чтение истории", "JDBC")
+
+    Rel(geo_service_instance1, redis, "Кэширование", "Redis Protocol")
+    Rel(geo_service_instance2, redis, "Кэширование", "Redis Protocol")
+    Rel(geocoder, redis, "Кэширование геокодирования", "Redis Protocol")
+
+    Rel(kafka, geo_service_instance1, "Публикация геоданных", "Kafka Protocol")
+    Rel(kafka, geo_service_instance2, "Публикация геоданных", "Kafka Protocol")
+    Rel(location_receiver, kafka, "Получение геоданных", "Kafka Protocol")
+    Rel(notification_service_instance1, kafka, "Публикация уведомлений", "Kafka Protocol")
+
+    Rel(geo_service_instance1, vault, "Получение секретов", "Vault API")
+    Rel(geo_service_instance2, vault, "Получение секретов", "Vault API")
+    Rel(auth_service_instance1, vault, "Получение секретов", "Vault API")
+    Rel(auth_service_instance2, vault, "Получение секретов", "Vault API")
+    Rel(user_service_instance1, vault, "Получение секретов", "Vault API")
+    Rel(user_service_instance2, vault, "Получение секретов", "Vault API")
+    Rel(geofence_service_instance1, vault, "Получение секретов", "Vault API")
+    Rel(geofence_service_instance2, vault, "Получение секретов", "Vault API")
+    Rel(notification_service_instance1, vault, "Получение секретов", "Vault API")
+    Rel(notification_service_instance2, vault, "Получение секретов", "Vault API")
   }
 
-Rel(geo_service_instance1, cockroachdb_primary, "Читает/пишет (RW)", "JDBC")
-Rel(geo_service_instance2, cockroachdb_primary, "Читает/пишет (RW)", "JDBC")
-Rel(auth_service_instance1, cockroachdb_secondary1, "Читает (RO)", "JDBC")
-Rel(user_service_instance1, cockroachdb_secondary2, "Читает (RO)", "JDBC")
-
-  Deployment_Node(timescaledb_node, "TimescaleDB Node", "TimescaleDB", "linux") {
-    Container(timescaledb, "TimescaleDB", "TimescaleDB", "Хранение истории")
-  }
-
-  Deployment_Node(redis_node, "Redis Node", "Redis Cluster", "linux") {
-    Container(redis, "Redis", "Redis", "Кэш")
-  }
-
-  Deployment_Node(kafka_cluster, "Kafka Cluster", "Kafka Cluster", "linux") {
-    Container(kafka, "Kafka", "Kafka", "Очередь сообщений")
-  }
-
-  Deployment_Node(vault_node, "Vault Node", "Vault Server", "linux") {
-    Container(vault, "Vault", "HashiCorp Vault", "Хранилище секретов")
-  }
+    Deployment_Node(k8s_cluster, "Kubernetes Cluster", "k8s"){
+        Deployment_Node(monitoring, "Monitoring Stack", "k8s deployments", "docker"){
+            Container(prometheus, "Prometheus", "Prometheus", "Сбор метрик")
+            Container(grafana, "Grafana", "Grafana", "Визуализация")
+            Container(elastic, "Elasticsearch", "Elasticsearch", "Логи")
+            Container(kibana, "Kibana", "Kibana", "Визуализация логов")
+        }
+        Rel(prometheus, geo_pods, "Собирает метрики", "")
+        Rel(prometheus, api_gateway_pods, "Собирает метрики", "")
+        Rel(prometheus, auth_pods, "Собирает метрики", "")
+        Rel(prometheus, user_pods, "Собирает метрики", "")
+        Rel(prometheus, geofence_pods, "Собирает метрики", "")
+        Rel(prometheus, notification_pods, "Собирает метрики", "")
+    }
 }
-
-Rel(mobile_app, api_gateway_instance1, "Отправляет запросы", "HTTPS, WebSockets")
-Rel(web_app, api_gateway_instance1, "Отправляет запросы", "HTTPS")
-
-System_Ext(osm, "OpenStreetMap", "Предоставление картографических данных")
-Rel(geo_pods, osm, "Запрашивает карты", "API")
-
-System_Ext(oauth_providers, "OAuth Providers", "Аутентификация")
-Rel(api_gateway_pods, oauth_providers, "Аутентификация", "OAuth 2.0")
-Rel(mobile_app, oauth_providers, "Аутентификация", "OAuth 2.0")
-Rel(web_app, oauth_providers, "Аутентификация", "OAuth 2.0")
-
-
 
 @enduml

@@ -1,47 +1,144 @@
 @startuml
-|Пользователь|
-start
-:Открывает мобильное приложение;
-:Авторизуется (OAuth 2.0);
-:Разрешает доступ к геолокации;
+participant "Пользователь" as user
+participant "Мобильное приложение" as app
+participant "API Gateway" as gateway
+participant "Гео сервис" as geo_service
+participant "Сервис геозон" as geofence_service
+participant "Сервис уведомлений" as notification_service
+participant "БД (CockroachDB)" as geodb
+participant "БД (TimescaleDB)" as historydb
 
-|Система|
-:Получает координаты устройства;
-:Определяет текущее местоположение;
-:Отображает карту с текущим местоположением;
-:Загружает список геозон пользователя (geofence_service);
-:Отображает геозоны на карте;
+user -> app: Открывает мобильное приложение
+activate app
 
-repeat
-    :Пользователь перемещается;
-    |Система|
-    :Получает новые координаты;
-    :Обновляет местоположение на карте;
-    :Сохраняет историю перемещений (TimescaleDB);
-    :Проверяет пересечение с геозонами (geofence_service);
-    if (Пересечение с геозоной?) then (да)
-        :Определяет тип события (вход/выход);
-        :Отправляет уведомление (notification_service);
-    endif
-    if (Пользователь взаимодействует с картой?) then (да)
-        if (Добавление геозоны?) then (да)
-            :Рисует геозону на карте;
-            :Сохраняет геозону (geofence_service);
-        elseif (Удаление геозоны?) then (да)
-            :Удаляет геозону с карты;
-            :Удаляет геозону (geofence_service);
-        elseif (Просмотр истории перемещений?) then (да)
-            :Загружает историю перемещений (TimescaleDB);
-            :Отображает историю на карте;
-        endif
-    endif
-    if (Пользователь нажал "Выход"?) then (да)
-        break
-    endif
-repeat while (Приложение открыто?) is (да)
+app -> gateway: Запрос авторизации (OAuth 2.0)
+activate gateway
 
-:Приложение закрыто;
-|Система|
-:Прекращает отслеживание местоположения;
-stop
+gateway -> user: Запрос учетных данных (OAuth 2.0)
+user -> gateway: Предоставляет учетные данные
+
+gateway -> "OAuth Provider" as oauth: Запрос авторизации
+activate oauth
+oauth --> gateway: Токен авторизации
+deactivate oauth
+
+gateway --> app: Успешная авторизация
+deactivate gateway
+
+user -> app: Разрешает доступ к геолокации
+app -> app: Включает отслеживание местоположения
+app -> geo_service: Отправляет координаты устройства
+activate geo_service
+
+geo_service -> geodb: Сохраняет геоданные
+activate geodb
+deactivate geodb
+
+geo_service -> geo_service: Определяет текущее местоположение
+geo_service --> app: Текущее местоположение
+deactivate geo_service
+
+app -> app: Отображает карту с текущим местоположением
+
+app -> geofence_service: Загружает список геозон
+activate geofence_service
+geofence_service -> geodb: Запрашивает геозоны пользователя
+activate geodb
+geodb --> geofence_service: Список геозон
+deactivate geodb
+geofence_service --> app: Список геозон
+deactivate geofence_service
+
+app -> app: Отображает геозоны на карте
+
+loop Приложение открыто
+    user -> app: Перемещается
+    app -> geo_service: Отправляет новые координаты
+    activate geo_service
+
+    geo_service -> geodb: Сохраняет геоданные
+    activate geodb
+    deactivate geodb
+
+    geo_service -> historydb: Сохраняет историю перемещений
+    activate historydb
+    deactivate historydb
+
+    geo_service -> geo_service: Обновляет текущее местоположение
+    geo_service --> app: Обновленное местоположение
+    deactivate geo_service
+
+    app -> app: Обновляет местоположение на карте
+
+    geo_service -> geofence_service: Проверяет пересечение с геозонами
+    activate geofence_service
+    geofence_service -> geodb: Запрашивает геозоны
+    activate geodb
+    geodb --> geofence_service: Геозоны пользователя
+    deactivate geodb
+    geofence_service -> geofence_service: Сравнивает координаты с геозонами
+    alt Пересечение с геозоной
+        geofence_service -> notification_service: Запрос на отправку уведомления (вход/выход)
+        activate notification_service
+        notification_service -> user: Отправляет push-уведомление
+        deactivate notification_service
+    end
+    deactivate geofence_service
+    
+    opt Взаимодействие с картой
+      alt Добавление геозоны
+          user -> app: Выбирает область на карте
+          user -> app: Вводит данные геозоны (название, радиус)
+          app -> geofence_service: Запрос на создание геозоны
+          activate geofence_service
+          geofence_service -> geodb: Сохраняет геозону
+          activate geodb
+          deactivate geodb
+          geofence_service --> app: Геозона создана
+          deactivate geofence_service
+          app -> app: Отображает новую геозону на карте
+      else Удаление геозоны
+          user -> app: Выбирает геозону на карте
+          user -> app: Подтверждает удаление
+          app -> geofence_service: Запрос на удаление геозоны
+          activate geofence_service
+          geofence_service -> geodb: Удаляет геозону
+          activate geodb
+          deactivate geodb
+          geofence_service --> app: Геозона удалена
+          deactivate geofence_service
+          app -> app: Удаляет геозону с карты
+      else Просмотр истории
+          user -> app: Выбирает период времени
+          app -> geo_service: Запрос истории перемещений
+          activate geo_service
+          geo_service -> historydb: Запрашивает историю
+          activate historydb
+          historydb --> geo_service: История перемещений
+          deactivate historydb
+          geo_service --> app: История перемещений
+          deactivate geo_service
+          app -> app: Отображает историю на карте
+      else Фильтрация данных
+          user -> app: Вводит параметры фильтрации (дата, устройство, и т.д.)
+          app -> geo_service: Запрос отфильтрованных данных
+          activate geo_service
+          geo_service -> geodb: Запрашивает данные по фильтру
+          activate geodb
+          geodb --> geo_service: Отфильтрованные данные
+          deactivate geodb
+          geo_service --> app: Отфильтрованные данные
+          deactivate geo_service
+          app -> app: Отображает отфильтрованные данные на карте
+      end
+    end
+
+    opt Нажатие кнопки "Выход"
+        user -> app: Нажимает кнопку "Выход"
+        app -> app: Завершает сеанс
+        deactivate app
+        destroy app
+    end
+end
+
 @enduml
