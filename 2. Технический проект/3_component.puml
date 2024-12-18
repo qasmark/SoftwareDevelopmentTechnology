@@ -103,11 +103,9 @@ together {
   System_Ext(monitoring_tools, "Prometheus, Grafana, ELK", "Мониторинг")
 }
 
-Rel(geo_service, openstreetmap, "Получение картографических данных", "API")
-Rel(auth_service, oauth_providers, "Аутентификация через OAuth 2.0", "OAuth 2.0")
-Rel(c1, monitoring_tools,"Сбор метрик и логов", "")
-
-Rel_R(openstreetmap, oauth_providers, "", "transparent")
-Rel_R(oauth_providers, monitoring_tools, "", "transparent")
-
+together {
+  Rel(geo_service, openstreetmap, "Получение картографических данных", "API")
+  Rel(auth_service, oauth_providers, "Аутентификация через OAuth 2.0", "OAuth 2.0")
+  Rel(c1, monitoring_tools,"Сбор метрик и логов", "")
+}
 @enduml

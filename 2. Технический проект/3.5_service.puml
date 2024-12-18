@@ -13,14 +13,20 @@ Person(business_user, "Бизнес-пользователь", "Взаимоде
 Person(third_party, "Третьи стороны", "Взаимодействует с Location API, Geofence API и Geocoding API")
 
 ' Конейнеры не связанные с бизнес-логикой сервиса напрямую
+together {
+  Container(geofence_service, "Сервис геозон", "Go", "Управление геозонами")
+  ContainerQueue(kafka, "Kafka", "Apache Kafka", "Обработка данных в реальном времени")
+  ContainerDb(redis, "Redis", "Redis", "Кэширование данных")
+}
+
 Container(api_gateway, "API Gateway", "Nginx", "Балансировка, маршрутизация, аутентификация")
-Container(geofence_service, "Сервис геозон", "Go", "Управление геозонами")
-Container(notification_service, "Сервис уведомлений", "Go", "Отправка уведомлений")
-ContainerDb(geo_service_db, "Geo Service DB", "CockroachDB", "Хранение геоданных, геозон")
-ContainerDb(geo_service_timescale, "Geo Service Timescale", "TimescaleDB", "Хранение истории перемещений")
-ContainerDb(redis, "Redis", "Redis", "Кэширование данных")
-ContainerQueue(kafka, "Kafka", "Apache Kafka", "Обработка данных в реальном времени")
-Container(vault, "Vault", "HashiCorp Vault", "Хранение конфиденциальных данных")
+
+together {  
+  Container(notification_service, "Сервис уведомлений", "Go", "Отправка уведомлений")
+  ContainerDb(geo_service_db, "Geo Service DB", "CockroachDB", "Хранение геоданных, геозон")
+  ContainerDb(geo_service_timescale, "Geo Service Timescale", "TimescaleDB", "Хранение истории перемещений")
+  Container(vault, "Vault", "HashiCorp Vault", "Хранение конфиденциальных данных")
+}
 
 System_Boundary(geo_service_boundary, "Гео Сервис") {
   ' API endpoints
@@ -94,6 +100,4 @@ System_Boundary(geo_service_boundary, "Гео Сервис") {
 Rel(geo_service_db, vault, "Получение секретов", "Vault API")
 Rel(geo_service_timescale, vault, "Получение секретов", "Vault API")
 
-Rel_R(openstreetmap, google_maps, "", "transparent")
-Rel_R(google_maps, mapbox, "", "transparent")
 @enduml
