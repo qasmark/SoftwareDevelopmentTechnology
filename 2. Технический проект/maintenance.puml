@@ -1,85 +1,134 @@
 @startuml
 !theme vibrant
 
-package "Кластер Kubernetes" as kubernetes {
-  [Сервис обработки геолокации] as geo_service << (C, #FFAAAA) >>
-  [Сервис авторизации] as auth_service << (C, #FFAAAA) >>
-  [Сервис уведомлений] as notification_service << (C, #FFAAAA) >>
-  [Сервис хранения данных] as data_service << (C, #FFAAAA) >>
-}
+package "Система геолокации" as system {
 
-package "HashiCorp Vault" as vault {
-  [Transit Secrets Engine] as transit << (C, #FFAAAA) >>
-  [Централизованное хранилище секретов] as secret_store << (C, #FFAAAA) >>
-}
-
-package "Обслуживание системы" as maintenance {
-  actor "Системный администратор" as sys_admin
-  actor "Разработчик" as developer
-  actor "Тестировщик" as tester
-
-  package "Мониторинг и управление" as monitoring {
-    [Система мониторинга (Prometheus)] as monitoring_service << (C, #FFAAAA) >>
-    [Система визуализации (Grafana)] as grafana_service << (C, #FFAAAA) >>
-    [Система логирования (ELK)] as elk_service << (C, #FFAAAA) >>
-    [Система бэкапов] as backup_service << (C, #FFAAAA) >>
+  package "Кластер Kubernetes (Yandex Cloud)" as kubernetes {
+    [Сервис обработки геолокации] as geo_service << (C, #FFAAAA) >>
+    [Сервис авторизации] as auth_service << (C, #FFAAAA) >>
+    [Сервис уведомлений] as notification_service << (C, #FFAAAA) >>
+    [Сервис геозон] as geofence_service << (C, #FFAAAA) >>
+    [Сервис хранения данных] as data_service << (C, #FFAAAA) >>
   }
-}
 
-package "Разработка" as development {
-  [Система контроля версий (Git)] as vcs << (C, #FFAAAA) >>
-  
   package "CI/CD (Jenkins)" as cicd {
-      [Сборка] as build_stage << (C, #FFAAAA) >>
-      [Unit-тесты] as unit_test_stage << (C, #FFAAAA) >>
-      [Интеграционные тесты] as integration_test_stage << (C, #FFAAAA) >>
-      [E2E-тесты] as e2e_test_stage << (C, #FFAAAA) >>
-      [Деплой] as deploy_stage << (C, #FFAAAA) >>
+    ' DevOps инженер
+    actor "DevOps инженер" as devops
+
+    ' Стадии сборки
+    node "Сборка" as build_stage {
+        [Сборка (dev)] as dev_build << (C, #ADD8E6) >>
+        [Сборка (prod)] as prod_build << (C, #90EE90) >>
+    }
+
+    ' Стадии тестирования
+    node "Тестирование" as test_stage {
+      [Unit-тесты] as unit_tests << (C, #FFAAAA) >>
+      [Интеграционные тесты] as integration_tests << (C, #FFAAAA) >>
+      [E2E-тесты] as e2e_tests << (C, #FFAAAA) >>
+      [Ручное тестирование (dev)] as manual_testing << (C, #FFAAAA) >>
+    }
+
+    ' Стадии деплоя
+    node "Деплой" as deploy_stage {
+      [Деплой (dev)] as dev_deploy << (C, #ADD8E6) >>
+      [Деплой (prod)] as prod_deploy << (C, #90EE90) >>
+    }
+  ' убрать избыточность стрекок (вместо devops -> A-Za-z_ сделать devops--> Node )
+  ' надо делать одну стрелку к ноде
+  
+    ' Связи DevOps инженера
+    devops --> dev_build : "Конфигурирование и запуск"
+    dev_build --> prod_build : "Конфигурирование и "
+    devops --> unit_tests : "Конфигурирование и запуск"
+    devops --> integration_tests : "Конфигурирование и запуск"
+    devops --> e2e_tests : "Конфигурирование и запуск"
+    devops --> manual_testing : "Конфигурирование"
+    devops --> deploy_stage : "Конфигурирование и запуск"
   }
+
+  package "HashiCorp Vault" as vault {
+    [Transit Secrets Engine] as transit << (C, #FFAAAA) >>
+    [Централизованное хранилище секретов] as secret_store << (C, #FFAAAA) >>
+  }
+
+  package "Обслуживание системы" as maintenance {
+    actor "Системный администратор" as sys_admin
+
+    package "Мониторинг и управление" as monitoring {
+      [Система мониторинга (Prometheus)] as monitoring_service << (C, #FFAAAA) >>
+      [Система визуализации (Grafana)] as grafana_service << (C, #FFAAAA) >>
+      [Система логирования (ELK)] as elk_service << (C, #FFAAAA) >>
+      [Система бэкапов] as backup_service << (C, #FFAAAA) >>
+    }
+  }
+
+  package "Разработка" as development {
+    actor "Разработчик" as developer
+    actor "Тестировщик" as tester
+
+    [Система контроля версий (Git)] as vcs << (C, #FFAAAA) >>
+  }
+
+  package "Клиентское приложение" as client_app {
+    [Flutter приложение] as flutter_app << (C, #FFAAAA) >>
+  }
+
+  ' Связи клиентского приложения
+  flutter_app --> geo_service : "Запрос данных о местоположении"
+  flutter_app --> auth_service : "Аутентификация пользователя"
+  flutter_app --> notification_service : "Получение уведомлений"
+
+  ' Связи системного администратора
+  sys_admin --> secret_store : "Управление секретами"
+  sys_admin --> monitoring_service : "Мониторинг состояния Vault и сервисов"
+  sys_admin --> grafana_service : "Просмотр дашбордов"
+  sys_admin --> elk_service : "Анализ логов"
+  sys_admin --> backup_service : "Создание бэкапов Vault"
+
+  ' Связи разработки и тестирования
+  developer --> sys_admin : "Запрос логов"
+  developer --> vcs : "PUSH изменений (dev, feature)"
+  tester --> vcs : "PUSH тестов (dev, feature)"
+
+  vcs --> dev_build : "Триггер сборки (dev)"
+  dev_build --> unit_tests : "Запуск Unit-тестов"
+  unit_tests --> integration_tests : "Запуск интеграционных тестов"
+  integration_tests --> manual_testing : "Запуск ручного тестирования"
+  manual_testing --> dev_deploy : "Запуск деплоя (dev)"
+
+  vcs --> prod_build : "Триггер сборки (prod)"
+  prod_build --> e2e_tests : "Запуск E2E-тестов"
+  e2e_tests --> prod_deploy : "Запуск деплоя (prod)"
+
+  tester --> manual_testing : "Ручное тестирование (dev)"
+  tester --> unit_tests : "Анализ результатов"
+  tester --> integration_tests : "Анализ результатов"
+  tester --> e2e_tests : "Анализ результатов"
+
+  ' Связи деплоя
+  dev_deploy -[#blue]> kubernetes : "Обновление\nсервисов (dev)"
+  prod_deploy -[#blue]> kubernetes : "Обновление\nсервисов (prod)"
+
+  ' Связи мониторинга и бэкапов
+  monitoring_service -down-> secret_store : "Проверка состояния хранилища секретов"
+  monitoring_service -down-> geo_service : "Проверка состояния сервиса"
+  monitoring_service -down-> auth_service : "Проверка состояния сервиса"
+  monitoring_service -down-> notification_service : "Проверка состояния сервиса"
+  monitoring_service -down-> data_service : "Проверка состояния сервиса"
+  monitoring_service -down-> geofence_service : "Проверка состояния сервиса"
+  backup_service -up-> secret_store : "Восстановление из бэкапов"
+
+  ' Связи сервисов с Vault
+  data_service -down-> transit : "Шифрование данных"
+  geo_service -down-> transit : "Шифрование геолокационных данных"
+  auth_service -down-> transit : "Шифрование токенов доступа"
+  notification_service -down-> transit : "Шифрование уведомлений"
+  geo_service --> vault : "Получение секретов"
+  auth_service --> vault : "Получение секретов"
+  geofence_service --> vault : "Получение секретов"
+  notification_service --> vault : "Получение секретов"
+
 }
-
-package "Клиентское приложение" as client_app {
-  [Flutter приложение] as flutter_app << (C, #FFAAAA) >>
-}
-
-sys_admin --> secret_store : "Управление секретами"
-sys_admin --> monitoring_service : "Мониторинг состояния Vault и сервисов"
-sys_admin --> grafana_service : "Просмотр дашбордов"
-sys_admin --> elk_service : "Анализ логов"
-sys_admin --> backup_service : "Создание бэкапов Vault"
-developer --> sys_admin : "Запрос логов"
-
-developer --> vcs : "PUSH изменений"
-tester --> vcs : "PUSH тестов"
-vcs --> build_stage : "Триггер сборки"
-build_stage --> unit_test_stage : "Запуск Unit-тестов"
-unit_test_stage --> integration_test_stage : "Запуск интеграционных тестов"
-integration_test_stage --> e2e_test_stage : "Запуск E2E-тестов"
-e2e_test_stage --> deploy_stage : "Запуск деплоя"
-
-deploy_stage -[#blue]> geo_service : "Обновление\nсервиса"
-' deploy_stage -[#blue]> auth_service : "Обновление сервиса"
-' deploy_stage -[#blue]> notification_service : "Обновление сервиса"
-' deploy_stage -[#blue]> data_service : "Обновление сервиса"
-
-tester --> unit_test_stage : "Анализ результатов"
-tester --> integration_test_stage : "Анализ результатов"
-tester --> e2e_test_stage : "Анализ результатов"
-
-monitoring_service --> secret_store : "Проверка состояния хранилища секретов"
-monitoring_service --> geo_service : "Проверка состояния сервиса"
-monitoring_service --> auth_service : "Проверка состояния сервиса"
-monitoring_service --> notification_service : "Проверка состояния сервиса"
-monitoring_service --> data_service : "Проверка состояния сервиса"
-backup_service --> secret_store : "Восстановление из бэкапов"
-
-flutter_app --> geo_service : "Запрос данных о местоположении"
-flutter_app --> auth_service : "Аутентификация пользователя"
-flutter_app --> notification_service : "Получение уведомлений"
-
-data_service --> transit : "Шифрование данных"
-geo_service --> transit : "Шифрование геолокационных данных"
-auth_service --> transit : "Шифрование токенов доступа"
-notification_service --> transit : "Шифрование уведомлений"
 
 @enduml
