@@ -29,20 +29,13 @@ package "Система геолокации" as system {
       [Ручное тестирование (dev)] as manual_testing << (C, #FFAAAA) >>
     }
 
-    ' Стадии деплоя
+    ' Стадия деплоя
     node "Деплой" as deploy_stage {
-      [Деплой (dev)] as dev_deploy << (C, #ADD8E6) >>
-      [Деплой (prod)] as prod_deploy << (C, #90EE90) >>
     }
-  ' убрать избыточность стрекок (вместо devops -> A-Za-z_ сделать devops--> Node )
-  ' надо делать одну стрелку к ноде
-  
+
     ' Связи DevOps инженера
-    devops --> dev_build : "Конфигурирование и запуск"
-    dev_build --> prod_build : "Конфигурирование и "
-    devops --> unit_tests : "Конфигурирование и запуск"
-    devops --> integration_tests : "Конфигурирование и запуск"
-    devops --> e2e_tests : "Конфигурирование и запуск"
+    devops --> build_stage : "Конфигурирование и запуск"
+    devops --> test_stage : "Конфигурирование и запуск"
     devops --> manual_testing : "Конфигурирование"
     devops --> deploy_stage : "Конфигурирование и запуск"
   }
@@ -81,10 +74,7 @@ package "Система геолокации" as system {
 
   ' Связи системного администратора
   sys_admin --> secret_store : "Управление секретами"
-  sys_admin --> monitoring_service : "Мониторинг состояния Vault и сервисов"
-  sys_admin --> grafana_service : "Просмотр дашбордов"
-  sys_admin --> elk_service : "Анализ логов"
-  sys_admin --> backup_service : "Создание бэкапов Vault"
+  sys_admin --> monitoring : "Мониторинг и управление"
 
   ' Связи разработки и тестирования
   developer --> sys_admin : "Запрос логов"
@@ -92,31 +82,25 @@ package "Система геолокации" as system {
   tester --> vcs : "PUSH тестов (dev, feature)"
 
   vcs --> dev_build : "Триггер сборки (dev)"
+  dev_build --> prod_build : "Сборка (prod)"
   dev_build --> unit_tests : "Запуск Unit-тестов"
   unit_tests --> integration_tests : "Запуск интеграционных тестов"
   integration_tests --> manual_testing : "Запуск ручного тестирования"
-  manual_testing --> dev_deploy : "Запуск деплоя (dev)"
+  manual_testing --> deploy_stage : "Запуск деплоя (dev)"
 
   vcs --> prod_build : "Триггер сборки (prod)"
   prod_build --> e2e_tests : "Запуск E2E-тестов"
-  e2e_tests --> prod_deploy : "Запуск деплоя (prod)"
+  e2e_tests --> deploy_stage : "Запуск деплоя (prod)"
 
   tester --> manual_testing : "Ручное тестирование (dev)"
-  tester --> unit_tests : "Анализ результатов"
-  tester --> integration_tests : "Анализ результатов"
-  tester --> e2e_tests : "Анализ результатов"
+  tester --> test_stage : "Анализ результатов"
 
-  ' Связи деплоя
-  dev_deploy -[#blue]> kubernetes : "Обновление\nсервисов (dev)"
-  prod_deploy -[#blue]> kubernetes : "Обновление\nсервисов (prod)"
+  ' Связь деплоя
+  deploy_stage -[#blue]> kubernetes : "Обновление\nсервисов"
 
   ' Связи мониторинга и бэкапов
-  monitoring_service -down-> secret_store : "Проверка состояния хранилища секретов"
-  monitoring_service -down-> geo_service : "Проверка состояния сервиса"
-  monitoring_service -down-> auth_service : "Проверка состояния сервиса"
-  monitoring_service -down-> notification_service : "Проверка состояния сервиса"
-  monitoring_service -down-> data_service : "Проверка состояния сервиса"
-  monitoring_service -down-> geofence_service : "Проверка состояния сервиса"
+  monitoring_service -down-> vault : "Проверка состояния Vault"
+  monitoring_service -down-> kubernetes : "Проверка состояния сервисов"
   backup_service -up-> secret_store : "Восстановление из бэкапов"
 
   ' Связи сервисов с Vault
@@ -124,10 +108,7 @@ package "Система геолокации" as system {
   geo_service -down-> transit : "Шифрование геолокационных данных"
   auth_service -down-> transit : "Шифрование токенов доступа"
   notification_service -down-> transit : "Шифрование уведомлений"
-  geo_service --> vault : "Получение секретов"
-  auth_service --> vault : "Получение секретов"
-  geofence_service --> vault : "Получение секретов"
-  notification_service --> vault : "Получение секретов"
+  kubernetes -down-> vault : "Получение секретов"
 
 }
 
